@@ -1,11 +1,12 @@
 #include "functions.h"
 #include "design.h"
 
-#define M_MENU_SIZE 5
+#define M_MENU_SIZE 6
 #define STUDENT_MENU 1
-#define CLASS_MENU 2
-#define DESTROY_EVERYTHING 3
-#define CREDITS 4
+#define EMPLOYEE_MENU 2
+#define CLASS_MENU 3
+#define DESTROY_EVERYTHING 4
+#define CREDITS 5
 #define EXIT M_MENU_SIZE
 
 #define S_MENU_SIZE 6
@@ -15,6 +16,13 @@
 #define EDIT_STUDENT 4
 #define DELETE_STUDENT 5
 #define S_MENU_BACK S_MENU_SIZE
+
+#define E_MENU_SIZE 5
+#define NEW_EMPLOYEE 1
+#define SEARCH_EMPLOYEE 2
+#define EDIT_EMPLOYEE 3
+#define DELETE_EMPLOYEE 4
+#define E_MENU_BACK E_MENU_SIZE
 
 #define C_MENU_SIZE 11
 #define NEW_CLASS 1
@@ -55,6 +63,7 @@ void program() {
     char tempText[100];
     char *mainMenuoptions[M_MENU_SIZE] = {
         "Student options",
+        "Employee options",
         "Class options",
         "[DANGER] Clear school",
         "Credits",
@@ -67,6 +76,14 @@ void program() {
         "Find student",
         "Edit student",
         "Delete student",
+        "Back",
+    };
+
+    char *employeeMenuOptions[S_MENU_SIZE] = {
+        "New employee",
+        "Find employee",
+        "Edit employee",
+        "Fire employee",
         "Back",
     };
 
@@ -107,14 +124,18 @@ void program() {
     bool back = false;
 
     CLinked school;
-    CLinked searchResults;
-    SLinked students;
-    SLinked studentSearchResults;
     createClassList(&school);
+    CLinked searchResults;
     Class newClass;
-    Student newStudent;
-    SNode *foundStudent;
     Class *foundClass;
+    SLinked students;
+    ELinked employees;
+    SLinked studentSearchResults;
+    Student newStudent;
+    Employee newEmployee;
+    ELinked employeeSearchResults;
+    ENode * foundEmployee;
+    SNode *foundStudent;
     char searchTerm[6];
     int IDSearch;
 
@@ -270,253 +291,387 @@ void program() {
             }
             break;
 
+        case EMPLOYEE_MENU:
+            while (!back) {
+                select = selectMenu(employeeMenuOptions, E_MENU_SIZE, &school);
+                system("cls");
+
+                switch (select) {
+                case NEW_EMPLOYEE:
+                    printf("Input employee's class name (id): ");
+                    gets(searchTerm);
+
+                    foundClass = findClass(&school, searchTerm);
+                    if (foundClass == NULL) {
+                        sprintf(tempText, "Could not find class \"%s\"", searchTerm);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    printf("input..\n");
+                    newEmployee = inputEmployeeData(&foundClass->Employees);
+                    printf("input done\n");
+                    printf("inserting...");
+                    insertEmployee(&foundClass->Employees, newEmployee);
+                    printf("done\n");
+                    printf("recount..");
+                    recountEmployees(&foundClass->Employees);
+                    printf("done\n");
+                    sprintf(tempText, "Successfully added \"%s\" to \"%s\"", newEmployee.Name, foundClass->ID);
+                    Success(tempText);
+                    break;
+
+                case SEARCH_EMPLOYEE:
+                    printf("Input employee ID: ");
+                    scanf("%d", &IDSearch);
+                    fflush(stdin);
+
+                    for (CNode * temp = school.Head; temp != NULL; temp = temp->Next) {
+                        employeeSearchResults = findEmployees(&temp->Data, IDSearch);
+                        if (employeeSearchResults.Head != NULL) {
+                            STabulizeEmployeeList(&employeeSearchResults, &temp->Data);
+                        } else {
+                            Error("No employees found");
+                        }
+                    }
+
+                    getch();
+                    system("cls");
+                    break;
+
+                case EDIT_EMPLOYEE:
+                    printf("Input class name (id): ");
+                    gets(searchTerm);
+
+                    foundClass = findClass(&school, searchTerm);
+                    if (foundClass == NULL) {
+                        sprintf(tempText, "Could not find class \"%s\"", searchTerm);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    printf("Input employee ID: ");
+                    scanf("%d", &IDSearch);
+                    fflush(stdin);
+
+                    foundEmployee = findEmployee(&foundClass->Employees, IDSearch);
+                    if (foundEmployee == NULL) {
+                        sprintf(tempText, "Could not find employee \"%d\"", IDSearch);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    TabulizeEmployee(foundEmployee->Data);
+
+                    foundEmployee->Data = inputEmployeeData(&foundClass->Employees);
+
+                    sprintf(tempText, "Successfully edited data for \"%s\"", foundEmployee->Data.Name);
+                    Success(tempText);
+                    system("cls");
+                    break;
+
+                case DELETE_EMPLOYEE:
+                    printf("Input class name (id): ");
+                    gets(searchTerm);
+
+                    foundClass = findClass(&school, searchTerm);
+                    if (foundClass == NULL) {
+                        sprintf(tempText, "Could not find class \"%s\"", searchTerm);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    printf("Input employee ID: ");
+                    scanf("%d", &IDSearch);
+                    fflush(stdin);
+
+                    foundEmployee = findEmployee(&foundClass->Employees, IDSearch);
+                    if (foundEmployee == NULL) {
+                        sprintf(tempText, "Could not find employee \"%d\"", IDSearch);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    sprintf(tempText, "Are you sure you would like to permanently delete \"%s\"?", foundEmployee->Data.Name);
+                    select = altSelectMenu(confirmOptions, 2, tempText);
+
+                    if (select == 1) {
+                        deleteEmployee(&foundClass->Employees, foundEmployee);
+                        Success("Employee deleted successfully");
+                    } else {
+                        Success("Operation canceled");
+                    }
+                    system("cls");
+                    break;
+
+                case E_MENU_BACK:
+                    back = true;
+                    break;
+                }
+            }
+            break;
+
         case CLASS_MENU:
             while (!back) {
                 select = selectMenu(classMenuOptions, C_MENU_SIZE, &school);
                 system("cls");
 
                 switch (select) {
-                    case NEW_CLASS:
-                        newClass = inputClassData(&school);
+                case NEW_CLASS:
+                    newClass = inputClassData(&school);
 
-                        createStudentList(&students);
-                        newClass.Students = students;
+                    createStudentList(&students);
+                    newClass.Students = students;
+                    createEmployeeList(&employees);
+                    newClass.Employees = employees;
 
-                        insertClass(&school, newClass);
-                        sprintf(tempText, "Successfully created class \"%s\"!", newClass.ID);
-                        Success(tempText);
-                        recountClasses(&school);
+                    insertClass(&school, newClass);
+                    sprintf(tempText, "Successfully created class \"%s\"!", newClass.ID);
+                    Success(tempText);
+                    recountClasses(&school);
                     break;
 
-                    case VIEW_CLASSES:
-                        sprintf(tempText, "Displaying %d classes", school.Size);
-                        printf(BBLU);
-                        RectangulizeCenterAlign(tempText, 20);
-                        printf(RESET);
+                case VIEW_CLASSES:
+                    sprintf(tempText, "Displaying %d classes", school.Size);
+                    printf(BBLU);
+                    RectangulizeCenterAlign(tempText, 20);
+                    printf(RESET);
+                    TabulizeClassList(&school);
+                    printf("Press any key to return");
+                    getch();
+                    system("cls");
+                    break;
+
+                case VIEW_STUDENTS:
+                    printf("Input class name (id): ");
+                    gets(searchTerm);
+
+                    foundClass = findClass(&school, searchTerm);
+                    if (foundClass == NULL) {
+                        sprintf(tempText, "Could not find class \"%s\"", searchTerm);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    if (foundClass->Students.Head == NULL && foundClass->Employees.Head == NULL) {
+                        sprintf(tempText, "Class \"%s\" is empty", foundClass->ID);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    sprintf(tempText, "Displaying %d employees", foundClass->Employees.Size);
+                    printf(BBLU);
+                    RectangulizeCenterAlign(tempText, 76);
+                    printf(RESET);
+                    TabulizeEmployeeList(foundClass);
+
+                    sprintf(tempText, "Displaying %d students", foundClass->Students.Size);
+                    printf(BBLU);
+                    RectangulizeCenterAlign(tempText, 76);
+                    printf(RESET);
+                    TabulizeStudentList(foundClass);
+
+                    printf("Press any key to return");
+                    getch();
+                    system("cls");
+                    break;
+
+                case SORT_CLASSES:
+                    select = selectMenu(classSortOptions, 3, &school);
+                    system("cls");
+
+                    switch (select) {
+                    case 1:
+                        sortClasses(&school, 1);
+                        Success("Sorted successfully");
                         TabulizeClassList(&school);
-                        printf("Press any key to return");
                         getch();
                         system("cls");
+                        break;
+
+                    case 2:
+                        sortClasses(&school, 4);
+                        Success("Sorted successfully");
+                        TabulizeClassList(&school);
+                        getch();
+                        system("cls");
+                        break;
+
+                    case 3:
+                        break;
+                    }
                     break;
 
-                    case VIEW_STUDENTS:
-                        printf("Input class name (id): ");
-                        gets(searchTerm);
+                case SEARCH_CLASS:
+                    printf("Input class name (id): ");
+                    gets(searchTerm);
+                    fflush(stdin);
 
-                        foundClass = findClass(&school, searchTerm);
-                        if (foundClass == NULL) {
-                            sprintf(tempText, "Could not find class \"%s\"", searchTerm);
-                            Error(tempText);
-                            system("cls");
-                            break;
-                        }
+                    searchResults = findClasses(&school, searchTerm);
+                    if (searchResults.Head == NULL) {
+                        Error("No classes found");
+                        system("cls");
+                        break;
+                    }
 
-                        if (foundClass->Students.Head == NULL) {
-                            sprintf(tempText, "Class \"%s\" is empty", foundClass->ID);
-                            Error(tempText);
-                            system("cls");
-                            break;
-                        }
+                    TabulizeClassList(&searchResults);
 
-                        sprintf(tempText, "Displaying %d students", foundClass->Students.Size);
-                        printf(BBLU);
-                        RectangulizeCenterAlign(tempText, 76);
-                        printf(RESET);
+                    getch();
+                    system("cls");
+                    break;
+
+                case EDIT_CLASS:
+                    printf("Input class name (id): ");
+                    gets(searchTerm);
+
+                    foundClass = findClass(&school, searchTerm);
+                    if (foundClass == NULL) {
+                        sprintf(tempText, "Could not find class \"%s\"", searchTerm);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    newClass = inputClassData(&school);
+                    strcpy(foundClass->ID, newClass.ID);
+                    sprintf(tempText, "Successfully edited data for \"%s\"", foundClass->ID);
+                    Success(tempText);
+                    system("cls");
+                    break;
+
+                case RANK_CLASS_STUDENTS:
+                    printf("Input class name (id): ");
+                    gets(searchTerm);
+
+                    foundClass = findClass(&school, searchTerm);
+                    if (foundClass == NULL) {
+                        sprintf(tempText, "Could not find class \"%s\"", searchTerm);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    if (foundClass->Students.Head == NULL) {
+                        sprintf(tempText, "Class \"%s\" is empty", foundClass->ID);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    rankStudents(&foundClass->Students);
+                    printf(BGRN);
+                    sprintf(tempText, "Successfully ranked class \"%s\"", foundClass->ID);
+                    RectangulizeCenterAlign(tempText, 76);
+                    printf(RESET);
+                    TabulizeStudentList(foundClass);
+                    printf("Press any key to return\n");
+                    getch();
+                    system("cls");
+                    break;
+
+                case SORT_STUDENTS:
+                    printf("Input class name (id): ");
+                    gets(searchTerm);
+
+                    foundClass = findClass(&school, searchTerm);
+                    if (foundClass == NULL) {
+                        sprintf(tempText, "Could not find class \"%s\"", searchTerm);
+                        Error(tempText);
+                        system("cls");
+                        break;
+                    }
+
+                    select = selectMenu(studentSortOptions, 4, &school);
+                    system("cls");
+
+                    switch (select) {
+                    case 1:
+                        sortStudents(&foundClass->Students, SORT_BY_ID);
+                        Success("Sorted successfully");
                         TabulizeStudentList(foundClass);
-                        printf("Press any key to return");
                         getch();
                         system("cls");
-                    break;
+                        break;
 
-                    case SORT_CLASSES:
-                        select = selectMenu(classSortOptions, 3, &school);
-                        system("cls");
-
-                        switch (select) {
-                        case 1:
-                            sortClasses(&school, 1);
-                            Success("Sorted successfully");
-                            TabulizeClassList(&school);
-                            getch();
-                            system("cls");
-                            break;
-
-                        case 2:
-                            sortClasses(&school, 4);
-                            Success("Sorted successfully");
-                            TabulizeClassList(&school);
-                            getch();
-                            system("cls");
-                            break;
-
-                        case 3:
-                            break;
-                        }
-                    break;
-
-                    case SEARCH_CLASS:
-                        printf("Input class name (id): ");
-                        gets(searchTerm);
-                        fflush(stdin);
-
-                        searchResults = findClasses(&school, searchTerm);
-                        if (searchResults.Head == NULL) {
-                            Error("No classes found");
-                            system("cls");
-                            break;
-                        }
-
-                        TabulizeClassList(&searchResults);
-
-                        getch();
-                        system("cls");
-                    break;
-
-                    case EDIT_CLASS:
-                        printf("Input class name (id): ");
-                        gets(searchTerm);
-
-                        foundClass = findClass(&school, searchTerm);
-                        if (foundClass == NULL) {
-                            sprintf(tempText, "Could not find class \"%s\"", searchTerm);
-                            Error(tempText);
-                            system("cls");
-                            break;
-                        }
-
-                        newClass = inputClassData(&school);
-                        strcpy(foundClass->ID, newClass.ID);
-                        sprintf(tempText, "Successfully edited data for \"%s\"", foundClass->ID);
-                        Success(tempText);
-                        system("cls");
-                    break;
-
-                    case RANK_CLASS_STUDENTS:
-                        printf("Input class name (id): ");
-                        gets(searchTerm);
-
-                        foundClass = findClass(&school, searchTerm);
-                        if (foundClass == NULL) {
-                            sprintf(tempText, "Could not find class \"%s\"", searchTerm);
-                            Error(tempText);
-                            system("cls");
-                            break;
-                        }
-
-                        if (foundClass->Students.Head == NULL) {
-                            sprintf(tempText, "Class \"%s\" is empty", foundClass->ID);
-                            Error(tempText);
-                            system("cls");
-                            break;
-                        }
-
-                        rankStudents(&foundClass->Students);
-                        printf(BGRN);
-                        sprintf(tempText, "Successfully ranked class \"%s\"", foundClass->ID);
-                        RectangulizeCenterAlign(tempText, 76);
-                        printf(RESET);
+                    case 2:
+                        sortStudents(&foundClass->Students, SORT_BY_NAME);
+                        Success("Sorted successfully");
                         TabulizeStudentList(foundClass);
-                        printf("Press any key to return\n");
                         getch();
                         system("cls");
-                    break;
+                        break;
 
-                    case SORT_STUDENTS:
-                        printf("Input class name (id): ");
-                        gets(searchTerm);
-
-                        foundClass = findClass(&school, searchTerm);
-                        if (foundClass == NULL) {
-                            sprintf(tempText, "Could not find class \"%s\"", searchTerm);
-                            Error(tempText);
-                            system("cls");
-                            break;
-                        }
-
-                        select = selectMenu(studentSortOptions, 4, &school);
+                    case 3:
+                        sortStudents(&foundClass->Students, SORT_BY_AGE);
+                        Success("Sorted successfully");
+                        TabulizeStudentList(foundClass);
+                        getch();
                         system("cls");
+                        break;
 
-                        switch (select) {
-                        case 1:
-                            sortStudents(&foundClass->Students, SORT_BY_ID);
-                            Success("Sorted successfully");
-                            TabulizeStudentList(foundClass);
-                            getch();
-                            system("cls");
-                            break;
-
-                        case 2:
-                            sortStudents(&foundClass->Students, SORT_BY_NAME);
-                            Success("Sorted successfully");
-                            TabulizeStudentList(foundClass);
-                            getch();
-                            system("cls");
-                            break;
-
-                        case 3:
-                            sortStudents(&foundClass->Students, SORT_BY_AGE);
-                            Success("Sorted successfully");
-                            TabulizeStudentList(foundClass);
-                            getch();
-                            system("cls");
-                            break;
-
-                        case 4:
-                            break;
-                        }
+                    case 4:
+                        break;
+                    }
 
                     break;
 
-                    case DESTROY_STUDENTS:
-                        printf("Input class name (id): ");
-                        gets(searchTerm);
+                case DESTROY_STUDENTS:
+                    printf("Input class name (id): ");
+                    gets(searchTerm);
 
-                        foundClass = findClass(&school, searchTerm);
-                        if (foundClass == NULL) {
-                            sprintf(tempText, "Could not find class \"%s\"", searchTerm);
-                            Error(tempText);
-                            system("cls");
-                            break;
-                        }
-
-                        sprintf(tempText, "Are you sure you would like to permanently clear \"%s\"?", foundClass->ID);
-                        select = altSelectMenu(confirmOptions, 2, tempText);
-
-                        if (select == 1) {
-                            destroyStudents(&foundClass->Students);
-                            Success("All students cleared successfully");
-                        } else {
-                            Error("Operation canceled");
-                        }
+                    foundClass = findClass(&school, searchTerm);
+                    if (foundClass == NULL) {
+                        sprintf(tempText, "Could not find class \"%s\"", searchTerm);
+                        Error(tempText);
                         system("cls");
+                        break;
+                    }
+
+                    sprintf(tempText, "Are you sure you would like to permanently clear \"%s\"?", foundClass->ID);
+                    select = altSelectMenu(confirmOptions, 2, tempText);
+
+                    if (select == 1) {
+                        destroyStudents(&foundClass->Students);
+                        Success("All students cleared successfully");
+                    } else {
+                        Error("Operation canceled");
+                    }
+                    system("cls");
                     break;
 
-                    case DELETE_CLASS:
-                        printf("Input class name (id): ");
-                        gets(searchTerm);
+                case DELETE_CLASS:
+                    printf("Input class name (id): ");
+                    gets(searchTerm);
 
-                        foundClass = findClass(&school, searchTerm);
-                        if (foundClass == NULL) {
-                            sprintf(tempText, "Could not find class \"%s\"", searchTerm);
-                            Error(tempText);
-                            system("cls");
-                            break;
-                        }
-
-                        sprintf(tempText, "Are you sure you would like to permanently delete \"%s\"?", foundClass->ID);
-                        select = altSelectMenu(confirmOptions, 2, tempText);
-
-                        if (select == 1) {
-                            deleteClass(&school, foundClass);
-                            Success("Class deleted successfully");
-                        } else {
-                            Error("Operation canceled");
-                        }
+                    foundClass = findClass(&school, searchTerm);
+                    if (foundClass == NULL) {
+                        sprintf(tempText, "Could not find class \"%s\"", searchTerm);
+                        Error(tempText);
                         system("cls");
+                        break;
+                    }
+
+                    sprintf(tempText, "Are you sure you would like to permanently delete \"%s\"?", foundClass->ID);
+                    select = altSelectMenu(confirmOptions, 2, tempText);
+
+                    if (select == 1) {
+                        deleteClass(&school, foundClass);
+                        Success("Class deleted successfully");
+                    } else {
+                        Error("Operation canceled");
+                    }
+                    system("cls");
                     break;
 
-                    case C_MENU_BACK:
-                        back = true;
+                case C_MENU_BACK:
+                    back = true;
                     break;
                 }
             }
@@ -574,6 +729,12 @@ void createStudentList(SLinked * listPointer) {
     listPointer->Size = 0;
 }
 
+void createEmployeeList(ELinked * listPointer) {
+    listPointer->Head = NULL;
+    listPointer->Tail = NULL;
+    listPointer->Size = 0;
+}
+
 void createClassList(CLinked * listPointer) {
     listPointer->Head = NULL;
     listPointer->Tail = NULL;
@@ -595,6 +756,24 @@ void appendStudent(SLinked * listPointer, Student data) {
     }
 
     listPointer->Tail = newStudent;
+    listPointer->Size++;
+}
+
+void appendEmployee(ELinked * listPointer, Employee data) {
+    ENode * newEmployee = malloc(sizeof(ENode));
+
+    newEmployee->Data = data;
+    newEmployee->Next = NULL;
+    newEmployee->Previous = NULL;
+
+    if (listPointer->Head == NULL) {
+        listPointer->Head = newEmployee;
+    } else {
+        listPointer->Tail->Next = newEmployee;
+        newEmployee->Previous = listPointer->Tail;
+    }
+
+    listPointer->Tail = newEmployee;
     listPointer->Size++;
 }
 
@@ -659,6 +838,49 @@ void insertStudent(SLinked * listPointer, Student data) {
     listPointer->Size++;
 }
 
+void insertEmployee(ELinked * listPointer, Employee data) {
+    ENode * newEmployee = malloc(sizeof(ENode));
+
+    if (newEmployee == NULL) {
+        printf("Could not allocate memory for new node");
+        return;
+    }
+
+    newEmployee->Data = data;
+    newEmployee->Next = NULL;
+    newEmployee->Previous = NULL;
+
+    if (listPointer->Head == NULL) {
+        appendEmployee(listPointer, data);
+        return;
+    }
+
+    SNode * temp = listPointer->Head;
+    while (temp != NULL && temp->Data.ID < newEmployee->Data.ID) {
+        temp = temp->Next;
+    }
+
+    if (temp == listPointer->Head) {
+        // Insert at head
+        newEmployee->Next = listPointer->Head;
+        listPointer->Head->Previous = newEmployee;
+        listPointer->Head = newEmployee;
+    } else if (temp == NULL) {
+        // Insert at tail
+        newEmployee->Previous = listPointer->Tail;
+        listPointer->Tail->Next = newEmployee;
+        listPointer->Tail = newEmployee;
+    } else {
+        // Insert in middle
+        newEmployee->Next = temp;
+        newEmployee->Previous = temp->Previous;
+        temp->Previous->Next = newEmployee;
+        temp->Previous = newEmployee;
+    }
+
+    listPointer->Size++;
+}
+
 void insertClass(CLinked * listPointer, Class data) {
     CNode * newClass = malloc(sizeof(CNode));
 
@@ -712,6 +934,7 @@ SNode * findStudent(SLinked * listPointer, int search) {
     return NULL;
 }
 
+
 SLinked findStudents(Class * listPointer, int search) {
     SLinked students;
     createStudentList(&students);
@@ -723,6 +946,29 @@ SLinked findStudents(Class * listPointer, int search) {
     }
 
     return students;
+}
+
+ENode * findEmployee(ELinked * listPointer, int search) {
+    for (ENode * temp = listPointer->Head; temp != NULL; temp = temp->Next) {
+        if ( temp->Data.ID == search ) {
+            return temp;
+        }
+    }
+
+    return NULL;
+}
+
+ELinked findEmployees(Class * listPointer, int search) {
+    ELinked employees;
+    createEmployeeList(&employees);
+
+    for (ENode * temp = listPointer->Employees.Head; temp != NULL; temp = temp->Next) {
+        if ( temp->Data.ID == search ) {
+            appendEmployee(&employees, temp->Data);
+        }
+    }
+
+    return employees;
 }
 
 Class * findClass(CLinked * listPointer, char search[]) {
@@ -836,6 +1082,86 @@ Student inputStudentData(SLinked *studentList) {
     return returnStudent;
 }
 
+Employee inputEmployeeData(ELinked *employeeList) {
+    Employee returnEmployee;
+    char ERRMSG[70];
+    bool restart = false;
+
+    do {
+        restart = false;
+        printf("Input employee ID: ");
+        scanf("%d", &returnEmployee.ID);
+        fflush(stdin);
+
+        for (ENode *temp = employeeList->Head; temp != NULL; temp = temp->Next) {
+            if ( temp->Data.ID == returnEmployee.ID ) {
+                restart = true;
+                sprintf(ERRMSG, "\"%d\" is already registered as \"%s\"", returnEmployee.ID, temp->Data.Name);
+                Error(ERRMSG);
+                system("cls");
+            }
+
+            if ( returnEmployee.ID < 1 || returnEmployee.ID > 9999 ) {
+                restart = true;
+                sprintf(ERRMSG, "%d is not a valid ID value", returnEmployee.ID);
+                Error(ERRMSG);
+                system("cls");
+            }
+        }
+    } while (restart);
+
+    do {
+        restart = false;
+        printf("Input employee name: ");
+        gets(returnEmployee.Name);
+        fflush(stdin);
+
+        for (ENode *temp = employeeList->Head; temp != NULL; temp = temp->Next) {
+            if ( strcmp(temp->Data.Name, returnEmployee.Name) == 0 ) {
+                restart = true;
+                sprintf(ERRMSG, "\"%s\" is already registered", temp->Data.Name);
+                Error(ERRMSG);
+                system("cls");
+            }
+        }
+    } while (restart);
+
+    do {
+        restart = false;
+        printf("Input employee age: ");
+        scanf("%d", &returnEmployee.Age);
+        fflush(stdin);
+
+        if (returnEmployee.Age < 1 || returnEmployee.Age > 99) {
+            restart = true;
+            Error("That is not a valid age value");
+            system("cls");
+        }
+    } while (restart);
+
+    do {
+        restart = false;
+        printf("Input employee profession: ");
+        gets(returnEmployee.Profession);
+        fflush(stdin);
+
+        if ( strlen(returnEmployee.Profession) < 2 || strlen(returnEmployee.Profession) > 15 ) {
+            restart = true;
+            Error("That is not a valid profession value");
+            system("cls");
+        }
+    } while (restart);
+
+    do {
+        restart = false;
+        printf("Input employee phone number: ");
+        scanf("%lu", &returnEmployee.Phone);
+        fflush(stdin);
+    } while (restart);
+
+    return returnEmployee;
+}
+
 Class inputClassData(CLinked * listPointer) {
     Class returnClass;
     bool restart = false;
@@ -907,6 +1233,32 @@ void deleteStudent(SLinked * listPointer, SNode * student) {
     listPointer->Size--;
 }
 
+void deleteEmployee(ELinked * listPointer, ENode * employee) {
+    if (listPointer->Head == employee && listPointer->Tail == employee) {
+        // Deleting only element in list
+        listPointer->Head = NULL;
+        listPointer->Tail = NULL;
+    } else if (listPointer->Head == employee) {
+        // Delete first element
+        listPointer->Head = employee->Next;
+        listPointer->Head->Previous = NULL;
+        employee->Next = NULL;
+    } else if (listPointer->Tail == employee) {
+        // Delete last element
+        listPointer->Tail = employee->Previous;
+        listPointer->Tail->Next = NULL;
+        employee->Previous = NULL;
+    } else {
+        // Delete center element
+        employee->Next->Previous = employee->Previous;
+        employee->Previous->Next = employee->Next;
+        employee->Next = NULL;
+        employee->Previous = NULL;
+    }
+    free(employee);
+    listPointer->Size--;
+}
+
 void deleteClass(CLinked * listPointer, CNode * class) {
     if (listPointer->Head == class && listPointer->Tail == class) {
         // Deleting only element in list
@@ -935,6 +1287,17 @@ void deleteClass(CLinked * listPointer, CNode * class) {
 
 void destroyStudents(SLinked * listPointer) {
     SNode * temp = listPointer->Head;
+    while (temp != NULL) {
+        temp = temp->Next;
+        free(listPointer->Head);
+        listPointer->Head = temp;
+    }
+    listPointer->Tail = NULL;
+    listPointer->Size = 0;
+}
+
+void destroyEmployees(ELinked * listPointer) {
+    ENode * temp = listPointer->Head;
     while (temp != NULL) {
         temp = temp->Next;
         free(listPointer->Head);
@@ -1033,6 +1396,15 @@ void sortClasses(CLinked * listPointer, int sortType) {
 int recountStudents(SLinked * listPointer) {
     int count = 0;
     for (SNode * temp = listPointer->Head; temp != NULL; temp = temp->Next) {
+        count++;
+    }
+    listPointer->Size = count;
+    return count;
+}
+
+int recountEmployees(ELinked * listPointer) {
+    int count = 0;
+    for (ENode * temp = listPointer->Head; temp != NULL; temp = temp->Next) {
         count++;
     }
     listPointer->Size = count;
